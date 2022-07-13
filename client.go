@@ -54,6 +54,7 @@ func (c *Client) serve() {
 	for i := 0; i < 10; i++ {
 		go func() {
 			var client *rpc.Client
+			client = Connect(client, c.TargetHost, c.RetryCount)
 			for {
 				// Do not connect until request comes
 				callRequest := <-c.callChannel

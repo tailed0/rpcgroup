@@ -86,6 +86,7 @@ func BenchmarkCallAll(b *testing.B) {
 	if group1.Call(Add, 10, 21)[0][0].(int) != 31 {
 		b.Fatal("unexpected")
 	}
+	group2.Call(Add, 10, 21)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x := rand.Intn(100)
