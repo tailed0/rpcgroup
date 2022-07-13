@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,6 +29,10 @@ func AddToCounter(value int) {
 
 var AddName = Register(Add)
 var AddToCounterName = Register(AddToCounter)
+
+var SendString = Register(func(a string) bool {
+	return a != ""
+})
 
 var NoNameFunc = Register(func() int { return 10 })
 
@@ -88,6 +93,29 @@ func BenchmarkCallAll(b *testing.B) {
 		group1.Call(Add, x, y)
 		group2.Call(Add, x, y)
 	}
+}
+
+func BenchmarkLargeMessage(b *testing.B) {
+	rand.Seed(time.Now().UnixNano())
+	port1 := 20000 + rand.Intn(10000)
+	port2 := 20000 + rand.Intn(10000)
+	group1 := New(port1, "localhost:"+strconv.Itoa(port1), "localhost:"+strconv.Itoa(port2))
+	_ = New(port2, "localhost:"+strconv.Itoa(port1), "localhost:"+strconv.Itoa(port2))
+	buf := strings.Repeat("a", 10000000)
+	b.ResetTimer()
+	var wg sync.WaitGroup
+	wg.Add(b.N * 2)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			group1.Call(SendString, buf)
+			wg.Done()
+		}()
+		go func() {
+			group1.Call(Add, 2, 3)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 func TestGroup_Subgroup(t *testing.T) {
