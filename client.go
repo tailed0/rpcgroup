@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/rpc"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type Client struct {
 	// The number of times that try to reconnect.  if this is negative, retry connection forever.
 	RetryCount int64
 
-	rpc_client *rpc.Client
+	rpc_clients *sync.Pool
 
 	callChannel chan *FunctionCallRequest
 }
@@ -24,6 +25,12 @@ func NewClient(TargetHost string) *Client {
 	c.TargetHost = TargetHost
 	c.RetryCount = -1
 	c.callChannel = make(chan *FunctionCallRequest, 1000)
+	c.rpc_clients = &sync.Pool{
+		New: func() interface{} {
+			return c.Connect()
+		},
+	}
+
 	go func() {
 		c.serve()
 	}()
@@ -31,9 +38,9 @@ func NewClient(TargetHost string) *Client {
 }
 
 // Connect connects to the server if the connection is not established yet.
-func (c *Client) Connect() {
+func (c *Client) Connect() (res *rpc.Client) {
 	retry := c.RetryCount
-	for c.rpc_client == nil {
+	for res == nil {
 		client, err := rpc.DialHTTP("tcp", c.TargetHost)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") {
@@ -47,18 +54,20 @@ func (c *Client) Connect() {
 			}
 			retry -= 1
 		} else {
-			c.rpc_client = client
+			res = client
 		}
 	}
+	return
 }
 
 func (c *Client) serve() {
 	for {
 		// Do not connect until request comes
 		callRequest := <-c.callChannel
-		c.Connect()
+		client := c.rpc_clients.Get().(*rpc.Client)
 		reply := new([]interface{})
-		c.rpc_client.Go("Dummy.Call", callRequest.CallArgs, reply, callRequest.Channel)
+		client.Go("Dummy.Call", callRequest.CallArgs, reply, callRequest.Channel)
+		c.rpc_clients.Put(client)
 	}
 }
 
