@@ -81,12 +81,15 @@ func BenchmarkCallAll(b *testing.B) {
 	if group1.Call(Add, 10, 21)[0][0].(int) != 31 {
 		b.Fatal("unexpected")
 	}
+	b.SetParallelism(10)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		x := rand.Intn(100)
-		y := rand.Intn(100)
-		group1.Call(Add, x, y)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			x := rand.Intn(100)
+			y := rand.Intn(100)
+			group1.Call(Add, x, y)
+		}
+	})
 }
 
 func TestGroup_Subgroup(t *testing.T) {
