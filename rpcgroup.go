@@ -1,5 +1,6 @@
 /*
 Example:
+
 	var group = rpcgroup.New(5000, "app1:5000", "app2:5000")
 	func init() {
 		id := "0001"
@@ -101,4 +102,19 @@ func (c *Group) call(name string, params ...interface{}) [][]interface{} {
 	}
 	wg.Wait()
 	return results
+}
+
+// Asynchronous call
+func (c *Group) Go(f interface{}, params ...interface{}) {
+	name := GetFunctionNameOrString(f)
+	for id, client := range c.Clients {
+		go func(id int, client *Client) {
+			if client.TargetHost == c.MyHost {
+				// If the destination is the same host, do not use RPC; instead, just call the function.
+				Call(name, params...)
+			} else {
+				client.Call(name, params...)
+			}
+		}(id, client)
+	}
 }
