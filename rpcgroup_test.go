@@ -86,7 +86,6 @@ func BenchmarkCallAll(b *testing.B) {
 		x := rand.Intn(100)
 		y := rand.Intn(100)
 		group1.Call(Add, x, y)
-		group2.Call(Add, x, y)
 	}
 }
 
