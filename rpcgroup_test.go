@@ -92,6 +92,34 @@ func BenchmarkCallAll(b *testing.B) {
 	})
 }
 
+func BenchmarkGo(b *testing.B) {
+	rand.Seed(time.Now().UnixNano())
+	port1 := 20000 + rand.Intn(10000)
+	port2 := 20000 + rand.Intn(10000)
+	group1 := New(port1, "localhost:"+strconv.Itoa(port1), "localhost:"+strconv.Itoa(port2))
+	for _, c := range group1.Clients {
+		c.RetryCount = 3
+	}
+	group2 := New(port2, "localhost:"+strconv.Itoa(port1), "localhost:"+strconv.Itoa(port2))
+	for _, c := range group2.Clients {
+		c.RetryCount = 3
+	}
+	if group1.Call(Add, 10, 21)[0][0].(int) != 31 {
+		b.Fatal("unexpected")
+	}
+	b.SetParallelism(1)
+	b.ResetTimer()
+	var wg sync.WaitGroup
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			x := 10 //rand.Intn(100)
+			y := 20 //rand.Intn(100)
+			group1.Go(&wg, Add, x, y)
+		}
+	})
+	wg.Wait()
+}
+
 func TestGroup_Subgroup(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	port1 := 20000 + rand.Intn(10000)

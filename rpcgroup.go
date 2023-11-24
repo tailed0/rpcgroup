@@ -104,8 +104,11 @@ func (c *Group) call(name string, params ...interface{}) [][]interface{} {
 	return results
 }
 
-// Asynchronous call
-func (c *Group) Go(f interface{}, params ...interface{}) {
+// Asynchronous call.  It returns a wait group.
+func (c *Group) Go(wg *sync.WaitGroup, f interface{}, params ...interface{}) {
+	if wg != nil {
+		wg.Add(len(c.Clients))
+	}
 	name := GetFunctionNameOrString(f)
 	for id, client := range c.Clients {
 		go func(id int, client *Client) {
@@ -114,6 +117,9 @@ func (c *Group) Go(f interface{}, params ...interface{}) {
 				Call(name, params...)
 			} else {
 				client.Call(name, params...)
+			}
+			if wg != nil {
+				wg.Done()
 			}
 		}(id, client)
 	}
